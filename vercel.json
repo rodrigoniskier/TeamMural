@@ -1,1 +1,5 @@
-{"builds":[{"src":"app.py","use":"@vercel/python"},{"src":"static/**","use":"@vercel/static"}],"routes":[{"src":"/static/(.*)","dest":"/static/$1"},{"src":"/(.*)","dest":"app.py"}]}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "flask",
+  "buildCommand": "python demo_build.py"
+}
