@@ -1,0 +1,22 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m compileall -q app.py
+      - run: |
+          SECRET_KEY=ci-secret-key           TEAMMURAL_ADMIN_EMAIL=admin@example.com           TEAMMURAL_ADMIN_PASSWORD=long-test-password-123           python - <<'PY'
+          import app
+          client = app.app.test_client()
+          assert client.get('/healthz').status_code == 200
+          print('healthcheck ok')
+          PY
