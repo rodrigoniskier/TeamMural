@@ -1,58 +1,65 @@
 # TeamMural
 
-> **Portfolio edition:** a secure, generic internal communication hub built from a private real-world communication workflow, with all personal context removed.
+### Comunicação interna para pequenas equipes
 
-TeamMural is designed for small teams that need a lightweight private space for group messages, direct conversations and file sharing without the complexity of a large collaboration suite.
+Edição pública de portfólio com dados inteiramente sintéticos. O código não depende de sistemas originais, bases institucionais ou informações pessoais.
 
-## Portfolio snapshot
+**Stack:** Flask · PostgreSQL / SQLite · Authentication · Messaging
 
-This project demonstrates authentication, password hashing, CSRF protection, authorization by conversation membership, secure file delivery, uploads, responsive UI and SQLite persistence.
+## O produto
 
-**Stack:** Flask · SQLite · Werkzeug Security · HTML/CSS/JavaScript
+Autenticação; autorização por participação na conversa; histórico; envio de mensagens; anexo demonstrativo; interface responsiva.
 
-## Features
+## Demonstração
 
-- authenticated user accounts;
-- administrator-managed users;
-- general team channel;
-- private direct messages;
-- text messages;
-- images, audio, video and generic attachments;
-- authorization before reading messages or downloading media;
-- CSRF protection for state-changing requests;
-- login attempt limiting;
-- secure session cookies;
-- security headers and CSP;
-- health endpoint;
-- responsive mobile/desktop interface.
+Ative `PORTFOLIO_DEMO=1` **somente em um banco dedicado**. O acesso é feito pelo botão da tela inicial; não há senha pública nem acesso administrativo privilegiado.
 
-## Run locally
+7 membros, canal geral e 3 conversas individuais com mensagens fictícias.
+
+A publicação online e os testes em PostgreSQL/Vercel ainda precisam ser concluídos. Nenhuma URL de aplicação é anunciada como funcional antes dessa verificação.
+
+## Execução local
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export PORTFOLIO_DEMO=1
+export DEBUG=1
+python seed_demo.py
+flask run
 ```
 
-Generate a session key and configure the first administrator in your environment:
+Os bancos locais são ignorados pelo Git. `seed_demo` é idempotente: executá-lo novamente não duplica a base. Para restaurar uma demonstração, use um **novo banco vazio dedicado**, execute as migrations (Django) e repita a carga; não execute reset em uma base de produção.
+
+## Publicação na Vercel
+
+O arquivo `vercel.json` encaminha a aplicação Python e serve os assets estáticos. Configure exclusivamente no ambiente da plataforma:
+
+- `PORTFOLIO_DEMO=1`
+- `SECRET_KEY`: valor aleatório próprio desta implantação
+- `DATABASE_URL`: PostgreSQL dedicado, com TLS
+- `COOKIE_SECURE=1`
+- `FORCE_HTTPS=1`
+
+Execute a carga inicial antes de abrir a URL pública. A aplicação recusa execução na Vercel sem banco persistente e chave de sessão. Não use SQLite no filesystem temporário da hospedagem.
+
+## Limites da demo
+
+- Painel administrativo bloqueado e contas demonstrativas sem privilégios perigosos.
+- Dados de exemplo identificados como sintéticos; visitantes devem usar apenas conteúdo fictício.
+- Novos uploads bloqueados.
+- Operações de escrita limitadas; os registros-base permanecem disponíveis.
+- CSRF e headers de segurança ativos.
+- Não é um ambiente de produção nem um serviço para informações confidenciais.
+
+## Validação
 
 ```bash
-export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-export TEAMMURAL_ADMIN_EMAIL="admin@example.com"
-export TEAMMURAL_ADMIN_PASSWORD="change-this-demo-password"
-export TEAMMURAL_ADMIN_NAME="Workspace Admin"
-python app.py
+python -m unittest discover -p 'test_*.py' -v
 ```
 
-The administrator is created only when the configured email does not already exist.
+Testes de autorização, CSRF, integridade dos dados demonstrativos e fluxos principais. Dependabot e GitHub Actions preservados.
 
-## Security model
-
-Selecting a display profile is **not** authentication. TeamMural therefore uses real accounts and server-side sessions. Every channel read, message post and attachment download is checked against channel membership on the backend.
-
-For production, use HTTPS, a persistent `SECRET_KEY`, secure cookies and a managed database/storage layer appropriate to the deployment.
-
-## Origin and privacy
-
-The private communication system that inspired this project remains separate. TeamMural contains no family names, private messages, production database or inherited repository history.
+Consulte [SECURITY.md](SECURITY.md). Nunca faça commit de `.env`, tokens, bancos, exports ou credenciais.

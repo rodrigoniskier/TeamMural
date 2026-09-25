@@ -1,12 +1,9 @@
-# Security Policy
+# Security
 
-TeamMural is designed for private internal communication. Security fixes target the current main branch.
+This public portfolio edition contains synthetic records only. Report vulnerabilities privately through GitHub security advisories; never post credentials or private data in issues.
 
-- Use a strong SECRET_KEY and a unique administrator password in production.
-- Run behind HTTPS and set COOKIE_SECURE=1 and FORCE_HTTPS=1.
-- Never commit databases, uploads, real chat exports or credentials.
-- Attachments are authorized against channel membership before serving.
-- User-created content is rendered as text; avoid adding raw HTML rendering paths.
-- SQLite is suitable for a small single-instance deployment. Use PostgreSQL/object storage before scaling to multiple workers or replicas.
+`PORTFOLIO_DEMO=1` must use an isolated database. Public demo identities are deliberately unprivileged. Admin access and unrestricted uploads are disabled. Inputs remain untrusted; CSRF protection and authorization still apply.
 
-Report vulnerabilities privately through GitHub Security Advisories / Private Vulnerability Reporting when available.
+Deployment secrets belong only in the hosting platform environment. Use a unique random `SECRET_KEY`, PostgreSQL with TLS, exact allowed hosts and HTTPS cookies. Never reuse a production database for this demo.
+
+This bounded demonstration does not provide production-grade abuse prevention. Shared demo content is visible to visitors and must not contain personal or confidential information.
