@@ -20,3 +20,4 @@ jobs:
           assert client.get('/healthz').status_code == 200
           print('healthcheck ok')
           PY
+      - run: python -m unittest discover -p 'test_*.py' -v

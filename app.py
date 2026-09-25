@@ -12,11 +12,14 @@ from flask import (
     send_from_directory, session, url_for,
 )
 from PIL import Image, UnidentifiedImageError
+from storage import connect as storage_connect
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent
+PORTFOLIO_DEMO = os.environ.get("PORTFOLIO_DEMO") == "1"
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", BASE_DIR / "teammural.db"))
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", BASE_DIR / "uploads"))
 MAX_UPLOAD_MB = max(1, int(os.environ.get("MAX_UPLOAD_MB", "25")))
@@ -25,6 +28,8 @@ LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_MAX_ATTEMPTS = 8
 
 app = Flask(__name__)
+if os.environ.get("VERCEL") and (not os.environ.get("SECRET_KEY") or not DATABASE_URL):
+    raise RuntimeError("Persistent DATABASE_URL and SECRET_KEY are required on Vercel")
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_urlsafe(48)
 app.config.update(
     MAX_CONTENT_LENGTH=MAX_UPLOAD_MB * 1024 * 1024,
@@ -34,15 +39,12 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=60 * 60 * 12,
 )
 
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+if not PORTFOLIO_DEMO: UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 _login_attempts = {}
 
 
 def db_connect():
-    conn = sqlite3.connect(DATABASE_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return storage_connect(DATABASE_URL, DATABASE_PATH)
 
 
 def init_db():
@@ -152,7 +154,7 @@ def csrf_token():
 
 @app.context_processor
 def inject_csrf():
-    return {"csrf_token": csrf_token, "me": current_user()}
+    return {"csrf_token": csrf_token, "me": current_user(), "portfolio_demo": PORTFOLIO_DEMO}
 
 
 def require_csrf():
@@ -239,7 +241,7 @@ def security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Permissions-Policy"] = "microphone=(self), camera=(), geolocation=()"
+    response.headers["Permissions-Policy"] = "microphone=(), camera=(), geolocation=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
@@ -320,6 +322,7 @@ def home():
 @app.route("/admin/users", methods=["GET", "POST"])
 @admin_required
 def admin_users():
+    if PORTFOLIO_DEMO: abort(403)
     error = None
     success = None
     if request.method == "POST":
@@ -383,7 +386,12 @@ def messages(channel_id):
             "WHERE m.channel_id = ? ORDER BY m.id ASC LIMIT 500",
             (channel_id,),
         ).fetchall()
-    return jsonify([dict(row) for row in rows])
+    result=[]
+    for row in rows:
+        item=dict(row)
+        item["created_at"]=str(item["created_at"])
+        result.append(item)
+    return jsonify(result)
 
 
 @app.post("/api/messages/<int:channel_id>")
@@ -393,11 +401,17 @@ def send_message(channel_id):
     me = current_user()
     payload = request.get_json(silent=True) or {}
     body = str(payload.get("body") or "").strip()
+    if PORTFOLIO_DEMO:
+        if session.get("message_count",0)>=20:
+            return jsonify({"error":"Limite da sessão atingido. Reentre na demonstração."}),429
+        session["message_count"]=session.get("message_count",0)+1
     if not body or len(body) > MAX_MESSAGE_LENGTH:
         return jsonify({"error": "Message is empty or too long."}), 400
     with db_connect() as conn:
         if not authorized_channel(conn, me["id"], channel_id):
             return jsonify({"error": "Forbidden."}), 403
+        if PORTFOLIO_DEMO and conn.execute("SELECT COUNT(*) AS total FROM messages").fetchone()["total"] >= 300:
+            return jsonify({"error":"Limite de mensagens da demonstração atingido."}),429
         cursor = conn.execute(
             "INSERT INTO messages (channel_id, user_id, body, kind) VALUES (?, ?, ?, 'text')",
             (channel_id, me["id"], body),
@@ -408,6 +422,7 @@ def send_message(channel_id):
 @app.post("/api/upload/<int:channel_id>")
 @login_required
 def upload(channel_id):
+    if PORTFOLIO_DEMO: return jsonify({"error":"Novos uploads estão desabilitados na demonstração."}),403
     require_csrf()
     me = current_user()
     file = request.files.get("file")
@@ -483,6 +498,29 @@ def download(stored_name):
         conditional=True, max_age=0,
     )
 
+
+@app.post("/demo/enter")
+def demo_enter():
+    if not PORTFOLIO_DEMO: abort(404)
+    require_csrf()
+    with db_connect() as conn:
+        user=conn.execute("SELECT id FROM users WHERE email = ? AND role = 'member'",("mariana@example.invalid",)).fetchone()
+    if not user: return "Demonstração em preparação.",503
+    session.clear()
+    session["user_id"]=user["id"]
+    session["csrf_token"]=secrets.token_urlsafe(32)
+    return redirect(url_for("home"))
+
+@app.get("/demo/attachment")
+@login_required
+def demo_attachment():
+    if not PORTFOLIO_DEMO: abort(404)
+    from flask import Response
+    return Response("ROTEIRO DA REUNIÃO — MATERIAL FICTÍCIO\n\n1. Revisar entregas da semana\n2. Identificar impedimentos\n3. Definir responsáveis e próximos passos\n",mimetype="text/plain",headers={"Content-Disposition":"attachment; filename=roteiro-reuniao.txt"})
+
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify({"error":"Não foi possível concluir a operação. Tente novamente."}),500
 
 if __name__ == "__main__":
     app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
