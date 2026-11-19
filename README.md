@@ -16,7 +16,7 @@ Edição pública de portfólio com dados inteiramente sintéticos. O código n�
 
 **Tecnologias.** Python, Flask, PostgreSQL, SQLite, SQL, autenticação, Vercel, GitHub Actions.
 
-**Qualidade e evidências.** Demonstração publicada com dados 100% sintéticos (7 membros, canal geral e 3 conversas individuais); 4 funções de teste automatizadas; workflow de CI.
+**Qualidade e evidências.** Demonstração publicada com dados 100% sintéticos (7 membros, canal geral e 3 conversas individuais); 4 funções de teste automatizadas; workflow de CI. Licença MIT.
 
 ## O produto
 
