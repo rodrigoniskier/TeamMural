@@ -6,6 +6,18 @@ Edição pública de portfólio com dados inteiramente sintéticos. O código n�
 
 **Stack:** Flask · PostgreSQL / SQLite · Authentication · Messaging
 
+## Problema, público e resultado
+
+**Problema.** Pequenas equipes precisam de um canal interno simples para conversar e compartilhar arquivos sem adotar uma plataforma grande.
+
+**Para quem.** Equipes pequenas que querem um mural de comunicação interna com conversas gerais e individuais.
+
+**O que entrega.** Autenticação, autorização por participação na conversa, histórico, envio de mensagens, anexos e interface responsiva.
+
+**Tecnologias.** Python, Flask, PostgreSQL, SQLite, SQL, autenticação, Vercel, GitHub Actions.
+
+**Qualidade e evidências.** Demonstração publicada com dados 100% sintéticos (7 membros, canal geral e 3 conversas individuais); 4 funções de teste automatizadas; workflow de CI.
+
 ## O produto
 
 Autenticação; autorização por participação na conversa; histórico; envio de mensagens; anexo demonstrativo; interface responsiva.
